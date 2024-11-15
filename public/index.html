@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Real-time Voting App</title>
+		<script src="https://cdn.tailwindcss.com"></script>
+	</head>
+	<body class="bg-gray-100 min-h-screen">
+		<div class="max-w-2xl mx-auto p-6">
+			<!-- Header -->
+			<header class="text-center mb-8">
+				<h1 class="text-3xl font-bold text-gray-800">Which is your favorite Avenger?</h1>
+				<p class="text-gray-600 mt-2" id="participant-count">Loading participants...</p>
+			</header>
+
+			<!-- Voting Options -->
+			<div class="space-y-4" id="voting-options">
+				<!-- captain Option -->
+				<button
+					class="w-full p-4 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 border-2 border-transparent hover:border-blue-500"
+					onclick="vote('captain')"
+				>
+					<div class="flex justify-between items-center">
+						<div class="flex items-center">
+							<span class="text-xl font-semibold text-gray-800">Captain America</span>
+						</div>
+						<div class="flex items-center space-x-3">
+							<span class="text-2xl font-bold text-blue-600" id="captain-votes">0</span>
+							<div class="w-20 bg-gray-200 rounded-full h-2.5">
+								<div class="bg-blue-600 h-2.5 rounded-full" id="captain-bar" style="width: 0%"></div>
+							</div>
+						</div>
+					</div>
+				</button>
+
+				<!-- hulk Option -->
+				<button
+					class="w-full p-4 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 border-2 border-transparent hover:border-green-500"
+					onclick="vote('hulk')"
+				>
+					<div class="flex justify-between items-center">
+						<div class="flex items-center">
+							<span class="text-xl font-semibold text-gray-800">Hulk</span>
+						</div>
+						<div class="flex items-center space-x-3">
+							<span class="text-2xl font-bold text-green-600" id="hulk-votes">0</span>
+							<div class="w-20 bg-gray-200 rounded-full h-2.5">
+								<div class="bg-green-600 h-2.5 rounded-full" id="hulk-bar" style="width: 0%"></div>
+							</div>
+						</div>
+					</div>
+				</button>
+
+				<!-- widow Option -->
+				<button
+					class="w-full p-4 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 border-2 border-transparent hover:border-orange-500"
+					onclick="vote('widow')"
+				>
+					<div class="flex justify-between items-center">
+						<div class="flex items-center">
+							<span class="text-xl font-semibold text-gray-800">Black Widow</span>
+						</div>
+						<div class="flex items-center space-x-3">
+							<span class="text-2xl font-bold text-orange-600" id="widow-votes">0</span>
+							<div class="w-20 bg-gray-200 rounded-full h-2.5">
+								<div class="bg-orange-600 h-2.5 rounded-full" id="widow-bar" style="width: 0%"></div>
+							</div>
+						</div>
+					</div>
+				</button>
+
+				<!-- hawkeye Option -->
+				<button
+					class="w-full p-4 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 border-2 border-transparent hover:border-purple-500"
+					onclick="vote('hawkeye')"
+				>
+					<div class="flex justify-between items-center">
+						<div class="flex items-center">
+							<span class="text-xl font-semibold text-gray-800">Hawkeye</span>
+						</div>
+						<div class="flex items-center space-x-3">
+							<span class="text-2xl font-bold text-purple-600" id="hawkeye-votes">0</span>
+							<div class="w-20 bg-gray-200 rounded-full h-2.5">
+								<div class="bg-purple-600 h-2.5 rounded-full" id="hawkeye-bar" style="width: 0%"></div>
+							</div>
+						</div>
+					</div>
+				</button>
+
+				<!-- ironman Option -->
+				<button
+					class="w-full p-4 bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 border-2 border-transparent hover:border-red-500"
+					onclick="vote('ironman')"
+				>
+					<div class="flex justify-between items-center">
+						<div class="flex items-center">
+							<span class="text-xl font-semibold text-gray-800">Iron Man</span>
+						</div>
+						<div class="flex items-center space-x-3">
+							<span class="text-2xl font-bold text-red-600" id="ironman-votes">0</span>
+							<div class="w-20 bg-gray-200 rounded-full h-2.5">
+								<div class="bg-red-600 h-2.5 rounded-full" id="ironman-bar" style="width: 0%"></div>
+							</div>
+						</div>
+					</div>
+				</button>
+			</div>
+
+			<!-- User Feedback -->
+			<div class="mt-6 text-center text-sm text-gray-600" id="user-feedback"></div>
+		</div>
+		<footer class="bg-gray-800 text-white text-center py-4 absolute bottom-0 w-full">
+			Made with <a href="https://developers.cloudflare.com/durable-objects/">Durable Objects</a>. View the
+			<a href="https://github.com/harshil1712/do-avengers-voting-app">source code</a>
+		</footer>
+
+		<script>
+			let ws;
+
+			function connectWebSocket() {
+				ws = new WebSocket('ws://localhost:8787/parties/voting/default');
+
+				ws.onopen = () => {
+					console.log('Connected to WebSocket');
+					document.getElementById('user-feedback').textContent = 'Connected!';
+				};
+
+				ws.onmessage = (event) => {
+					const data = JSON.parse(event.data);
+					if (data.type == 'result') {
+						updateVoteCounts(data.results);
+					}
+				};
+
+				ws.onclose = () => {
+					document.getElementById('user-feedback').textContent = 'Connection lost. Reconnecting...';
+					setTimeout(connectWebSocket, 1000);
+				};
+			}
+
+			function vote(option) {
+				if (ws && ws.readyState === WebSocket.OPEN) {
+					ws.send(
+						JSON.stringify({
+							type: 'vote',
+							choice: option,
+						})
+					);
+					document.getElementById('user-feedback').textContent = 'Vote submitted!';
+				}
+			}
+
+			function updateVoteCounts(results) {
+				// results can be an empty object or an object of the form { "captain": 1, "hulk": 2, ... }
+				const totalVotes = Object.values(results).reduce((acc, votes) => acc + votes, 0);
+
+				['captain', 'hulk', 'widow', 'hawkeye', 'ironman'].forEach((option) => {
+					const votes = results[option] || 0;
+					const percentage = totalVotes > 0 ? (votes / totalVotes) * 100 : 0;
+
+					document.getElementById(`${option}-votes`).textContent = votes;
+					document.getElementById(`${option}-bar`).style.width = `${percentage}%`;
+				});
+
+				document.getElementById('participant-count').textContent = `${totalVotes} vote${totalVotes !== 1 ? 's' : ''} so far`;
+			}
+
+			// Connect when the page loads
+			connectWebSocket();
+		</script>
+	</body>
+</html>
