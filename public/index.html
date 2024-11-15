@@ -117,9 +117,12 @@
 
 		<script>
 			let ws;
+			const hostname = window.location.hostname;
+			// if localhost use ws else, wss
+			const wsUrl = hostname === 'localhost' ? 'ws://localhost:8787' : `wss://${hostname}`;
 
 			function connectWebSocket() {
-				ws = new WebSocket('ws://localhost:8787/parties/voting/default');
+				ws = new WebSocket(`${wsUrl}/parties/voting/default`);
 
 				ws.onopen = () => {
 					console.log('Connected to WebSocket');
